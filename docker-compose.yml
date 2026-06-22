@@ -1,0 +1,33 @@
+# SERVER-LEVEL shared reverse proxy. Run ONCE per server (not per project).
+# This is the only container on the box that owns ports 80/443. It routes
+# incoming requests to each project's container by domain name, and handles
+# automatic HTTPS for every domain.
+#
+#   docker network create proxy        # one time
+#   docker compose up -d                # from this infra/ dir
+#
+# Every project then joins the external "proxy" network and gets a block in
+# ./Caddyfile. See DEPLOY_MULTI.md.
+
+services:
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
+
+volumes:
+  caddy_data:
+  caddy_config:
