@@ -102,17 +102,36 @@ handle these automatically for every future deploy, not just these two):
   seeing a stale cached log line and assumed nothing had changed).
 
 ### Phase 1 — functional MVP (single user: you)
-- [ ] GitHub App registration + install flow + webhook signature verification
-- [ ] Postgres schema: `users`, `projects`, `deployments`, `env_vars`
-- [ ] Redis + BullMQ job queue
-- [ ] Runner daemon (docker socket access) — job = `{repoUrl, sha, slug}` →
-      `nixpacks build` → tag `:sha` → `docker run` w/ Traefik labels →
-      health check → swap old container. Must set `HOSTNAME=0.0.0.0` on
-      every deployed container by default (see Phase 0 gotchas) — otherwise
-      every Next.js deploy silently 502s despite the app reporting healthy.
-- [ ] Control-plane webapp: GitHub OAuth login, connect repo, create project
-      (repo + branch → auto slug), deployment list + status + streamed logs
-- [ ] Push webhook → build job → live status in dashboard
+Control plane lives in its own repo: `ethiodeploy` (sibling to `server-infra`,
+not folded into it). Scaffold committed locally there (not yet pushed — no
+remote created yet, no `gh` CLI in this environment).
+
+- [x] Postgres schema (Prisma): `User`, `Project`, `Deployment`, `EnvVar`
+- [x] Redis + BullMQ job queue (`lib/queue.ts`)
+- [x] Runner daemon skeleton (`runner/`, docker socket access) — job →
+      git clone via GitHub App installation token → `nixpacks build` →
+      `docker run` w/ Traefik labels → old container removed. Sets
+      `HOSTNAME=0.0.0.0` on every deployed container automatically (see
+      Phase 0 gotchas) — solved once, applies to every future deploy.
+- [x] Control-plane webapp skeleton: GitHub OAuth login (via the GitHub App's
+      own OAuth), project list, new-project form, deployment history page
+- [x] Push webhook route (`app/api/webhooks/github/route.ts`) — verifies
+      signature, enqueues deploy job on push to the project's default branch
+- [x] `next build` passes clean, typecheck clean
+- [ ] Actually create the GitHub App on github.com (manual step, see
+      `ethiodeploy/README.md`) and fill real `.env` values — nothing above
+      has been exercised end-to-end yet, it's untested against a live App
+- [ ] Local dev needs Docker Desktop running (wasn't running during
+      scaffolding) — start it to run `docker-compose.dev.yml` and actually
+      test the flow before deploying to the server
+- [ ] Create GitHub remote for `ethiodeploy` and push (no `gh` CLI available
+      in this environment — needs manual repo creation or CLI install)
+- [ ] Deploy `ethiodeploy` itself to the Hetzner server per its README
+      (joins `proxy` network, `ethiodeploy.com` via the `cloudflare` DNS-01
+      resolver since that zone's already in the Cloudflare account)
+- [ ] "New Project" form currently takes installation ID as manual text
+      input — fine for MVP (you're the only user), revisit before opening
+      this up (should list installed repos via the GitHub App API instead)
 
 ### Phase 2 — polish
 - [ ] Env var / secrets UI (encrypted at rest)
@@ -155,6 +174,5 @@ debug during buildout. Revisit once stable + before opening to real users:
 
 ## Open items / needs decision
 - Naming/domain done (`ethiodeploy.com`, single-domain model).
-- Which repo hosts the control-plane app + runner daemon — new repo, or
-  folded into this one? Currently assumed **new repo**, this repo (`server-infra`)
-  stays scoped to proxy + box-level infra.
+- Control-plane repo location done: `ethiodeploy`, sibling repo. See Phase 1
+  for what's left before it's actually running.
