@@ -16,7 +16,13 @@ without re-deriving context. Update it as phases complete or scope changes.
 - **Reverse proxy**: Traefik (Docker-label-based, auto TLS via ACME DNS-01),
   replacing the current static-Caddyfile setup. This is Phase 0.
 - **DNS-01 provider**: Cloudflare (free API, needed for wildcard cert issuance
-  — wildcard certs can't use HTTP-01).
+  — wildcard certs can't use HTTP-01). Traefik runs **two** cert resolvers:
+  `cloudflare` (DNS-01, for `*.ethiodeploy.com` wildcard only — requires the
+  domain's zone to live in this Cloudflare account) and `letsencrypt`
+  (HTTP-01, for any other single domain — legacy projects like
+  `telegramsearchengine.dev`/`solocodes.dev`, and future custom domains that
+  aren't on this Cloudflare account). Don't put legacy/custom-domain projects
+  on the `cloudflare` resolver unless their zone is actually added here first.
 - **Build system**: Nixpacks (Railway's open-source builder). Auto-detects
   Next.js/Node/Python/etc from repo — **no Dockerfile required in user repos**.
   Falls back to repo's own Dockerfile if present.
