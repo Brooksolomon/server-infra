@@ -30,6 +30,11 @@ services:
       - --certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json
     env_file:
       - .env
+    environment:
+      # Traefik's bundled Docker client can default to a stale API version
+      # (1.24) below the daemon's minimum. Pin explicitly to avoid
+      # "client version too old" errors talking to the Docker socket.
+      - DOCKER_API_VERSION=1.41
     # Use public DNS resolvers inside the container — the host's stub resolver
     # (127.0.0.53) is unreachable from containers and breaks ACME/Let's Encrypt.
     dns:
