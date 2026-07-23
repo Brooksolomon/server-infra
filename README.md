@@ -118,7 +118,7 @@ request (~30s).
 
 ---
 
-## The currently-deployed project
+## Currently-deployed projects
 
 `telegram-search-engine` runs behind this proxy. Its web container is named
 `telegram-search-engine-web`, routed via the labels in its own
@@ -126,6 +126,10 @@ request (~30s).
 
 Its `api`, `meili`, and `postgres` stay on the project's private network —
 only the web container is exposed to the proxy network.
+
+`portfolio` also runs behind this proxy. Its web container is named
+`portfolio-web`, routed via the labels in its own `docker-compose.shared.yml`
+to `solocodes.dev`. Its `postgres` stays on the project's private network.
 
 ---
 

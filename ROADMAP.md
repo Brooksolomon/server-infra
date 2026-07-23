@@ -62,8 +62,12 @@ without this, every new project still needs a manual file edit + reload.
       the actual server
 - [x] Migrate `telegram-search-engine-web` from Caddyfile block to Traefik
       labels on its own compose file (`tg-discovery/docker-compose.shared.yml`)
-      — file changed locally, **not yet deployed** (this is the one live prod
-      site — highest-risk step, apply carefully, verify zero downtime)
+      — file changed locally, **not yet deployed**
+- [x] Migrate `portfolio-web` (`solocodes.dev`) from Caddyfile block to
+      Traefik labels (`portfolio/docker-compose.shared.yml`) — discovered via
+      the server's live Caddyfile (wasn't documented in original README),
+      file changed locally, **not yet deployed**. Two live prod sites total —
+      apply carefully, verify zero downtime for both.
 - [x] Remove Caddy service + Caddyfile locally
 - [x] Update README.md to describe label-based routing instead of Caddyfile
       edits
