@@ -151,6 +151,19 @@ remote created yet, no `gh` CLI in this environment).
 - [ ] Custom domain support per project (CNAME + Traefik cert)
 - [ ] Preview deployments per PR/branch
 - [ ] Deployment history + one-click rollback to prior sha
+- [ ] **Atomic/immutable deployments** (how Vercel and Railway actually do
+      rollback): currently the runner mutates in place — stops the old
+      container, starts the new one, with a brief gap. Vercel/Railway keep
+      each deployment's image/container addressable and "promote to
+      production" is just re-pointing the router at a specific past
+      deployment — that's what makes their rollback instant. Worth doing
+      once there's more than one project depending on zero-downtime deploys.
+- [ ] **Health-check-gated zero-downtime swap**: build the new container,
+      wait for it to pass a health check *before* killing the old one, then
+      swap — removes the current stop-then-start gap entirely. Render and
+      Railway both do this. Currently just README-documented as a manual
+      pattern (`server-infra/README.md`); the runner should do it
+      automatically for every deploy.
 
 ### Phase 3 — multi-tenant safety
 Before letting anyone else run code on the box:
@@ -159,6 +172,12 @@ Before letting anyone else run code on the box:
       docker / gVisor at minimum)
 - [ ] Network egress restrictions for tenant containers
 - [ ] Per-tenant container namespacing (no name/port collisions)
+- [ ] **Stronger runtime isolation — Firecracker microVMs** (what Railway
+      actually runs workloads in, same tech AWS Lambda uses under the hood):
+      real security boundary between different customers' code on shared
+      hardware, well beyond what plain `docker run` gives you. Bigger lift
+      than gVisor/rootless above — evaluate once there's real multi-tenant
+      demand, not needed for single-user MVP.
 
 ### Phase 3.5 — DDoS protection
 DNS-only (grey cloud) is deliberate for now — see Phase 0 notes, keeps Traefik
@@ -184,6 +203,9 @@ debug during buildout. Revisit once stable + before opening to real users:
 - [ ] Shared image registry
 - [ ] Load balancer across boxes
 - [ ] Shared build cache
+- [ ] Multi-region (Vercel/Railway both run multiple regions — pick per
+      project or auto-nearest). Only matters once boxes exist in more than
+      one place; not a concern while everything's on one Hetzner server.
 
 ## Open items / needs decision
 - Naming/domain done (`ethiodeploy.com`, single-domain model).
