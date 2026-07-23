@@ -58,32 +58,48 @@ driven by jobs from the control plane.
 
 ## Phases
 
-### Phase 0 — proxy swap (IN PROGRESS)
-Replace static Caddy/Caddyfile with Traefik (Docker provider, auto-discovers
-containers via labels, auto wildcard TLS). Foundation for everything else —
-without this, every new project still needs a manual file edit + reload.
+### Phase 0 — proxy swap (DONE)
+Replaced static Caddy/Caddyfile with Traefik (Docker provider, auto-discovers
+containers via labels, auto wildcard TLS). Both live sites confirmed working
+on Traefik with valid Let's Encrypt certs; old Caddy fully retired.
 
-- [x] Add Traefik service to `docker-compose.yml`, Docker socket mount,
-      Cloudflare DNS-01 resolver config — done locally, not yet applied on
-      the actual server
-- [x] Migrate `telegram-search-engine-web` from Caddyfile block to Traefik
-      labels on its own compose file (`tg-discovery/docker-compose.shared.yml`)
-      — file changed locally, **not yet deployed**
-- [x] Migrate `portfolio-web` (`solocodes.dev`) from Caddyfile block to
-      Traefik labels (`portfolio/docker-compose.shared.yml`) — discovered via
-      the server's live Caddyfile (wasn't documented in original README),
-      file changed locally, **not yet deployed**. Two live prod sites total —
-      apply carefully, verify zero downtime for both.
-- [x] Remove Caddy service + Caddyfile locally
-- [x] Update README.md to describe label-based routing instead of Caddyfile
-      edits
-- [ ] Create Cloudflare account/zone for final domain, generate scoped API
-      token (Zone:DNS:Edit), fill in real `server-infra/.env`
-- [ ] Apply on the actual Hetzner server (SSH required — not done from this
-      session, needs manual run or explicit access grant): bring up new
-      Traefik stack, redeploy tg-discovery with new labels, confirm
-      `telegramsearchengine.dev` still resolves + HTTPS valid, then remove
-      old Caddy container
+- [x] Traefik service in `docker-compose.yml`, Docker socket mount, dual cert
+      resolvers (see Locked decisions)
+- [x] `telegram-search-engine-web` migrated + verified live (`telegramsearchengine.dev`)
+- [x] `portfolio-web` migrated + verified live (`solocodes.dev`)
+- [x] Caddy service + Caddyfile removed
+- [x] README.md describes label-based routing
+- [x] Cloudflare zone + scoped API token set up for `ethiodeploy.com`, `.env` filled
+- [x] Applied on the actual Hetzner server, both sites verified
+
+**Gotchas hit during rollout** (relevant to Phase 1 — the runner needs to
+handle these automatically for every future deploy, not just these two):
+- **Docker Engine 29.x API mismatch**: Traefik v3.1/v3.3 hardcode an old
+  default Docker API version internally and ignore `DOCKER_API_VERSION` env
+  entirely — not a negotiation issue, just don't read it. Fixed by bumping to
+  `traefik:3.7.8` (confirmed working with Docker Engine 29.6.0 / API 1.55,
+  daemon minimum 1.40). If Docker gets upgraded again, may need a newer
+  Traefik tag.
+- **DNS-01 only works for zones actually in the Cloudflare account.** Trying
+  to issue a cert for a domain not on Cloudflare fails with "zone could not
+  be found" — silently falls back to Traefik's self-signed cert (browser
+  shows `ERR_CERT_AUTHORITY_INVALID`), no obvious error unless you grep logs.
+  Hence the two-resolver split (see Locked decisions).
+- **Next.js standalone + Docker HOSTNAME collision**: Docker auto-injects
+  `HOSTNAME=<container-id>` into every container. Next.js's standalone
+  server reads `process.env.HOSTNAME` as its bind address instead of
+  defaulting to `0.0.0.0`, so it silently listens on loopback only —
+  process looks healthy (logs "Ready"), DNS resolves fine, but any other
+  container gets connection-refused (502 from Traefik). Fix: explicitly set
+  `environment: [HOSTNAME=0.0.0.0]` on the web service. **This will hit
+  every Next.js project deployed through the platform** — the Phase 1
+  runner must inject this automatically (or nixpacks/build step must set
+  it), not rely on each project's compose file doing it manually.
+- **Traefik static config (cert resolvers, providers) only reloads on full
+  recreate** (`docker compose down && up -d`), not `restart` — `restart`
+  reuses the same container/args, so config changes referenced by CLI flags
+  won't take effect from a plain restart. This tripped up debugging (kept
+  seeing a stale cached log line and assumed nothing had changed).
 
 ### Phase 1 — functional MVP (single user: you)
 - [ ] GitHub App registration + install flow + webhook signature verification
@@ -91,7 +107,9 @@ without this, every new project still needs a manual file edit + reload.
 - [ ] Redis + BullMQ job queue
 - [ ] Runner daemon (docker socket access) — job = `{repoUrl, sha, slug}` →
       `nixpacks build` → tag `:sha` → `docker run` w/ Traefik labels →
-      health check → swap old container
+      health check → swap old container. Must set `HOSTNAME=0.0.0.0` on
+      every deployed container by default (see Phase 0 gotchas) — otherwise
+      every Next.js deploy silently 502s despite the app reporting healthy.
 - [ ] Control-plane webapp: GitHub OAuth login, connect repo, create project
       (repo + branch → auto slug), deployment list + status + streamed logs
 - [ ] Push webhook → build job → live status in dashboard
