@@ -118,14 +118,27 @@ remote created yet, no `gh` CLI in this environment).
 - [x] Push webhook route (`app/api/webhooks/github/route.ts`) — verifies
       signature, enqueues deploy job on push to the project's default branch
 - [x] `next build` passes clean, typecheck clean
+- [x] Local dev verified working: Postgres+Redis via `docker-compose.dev.yml`,
+      migration applied, `npm run dev` and `npm run runner:start` both boot
+      clean. Gotchas hit (see commit `692c27e` in `ethiodeploy`):
+  - This machine already runs two other local Postgres instances (on 5432
+    and 5433) — dev Postgres moved to host port 5434. If `prisma migrate`
+    ever throws a confusing `P1010`/`(not available)` auth error again on a
+    dev machine, check for a port collision with an unrelated Postgres
+    before assuming it's a real Prisma bug — that's what it was here.
+  - `tsx` (runner's TS runtime) has a resolver bug (`resolveTsPaths`) that
+    crashes on any dependency chain touching an ESM-only package with no
+    `require` export condition (hit via `execa` → `unicorn-magic`). Fixed by
+    dropping `execa` for a tiny `node:child_process` wrapper
+    (`runner/src/exec.ts`) and giving the runner its own `tsconfig.json`
+    without the `@/*` path alias. **Lesson for future runner deps**: avoid
+    packages pulling in strict-ESM-only transitive deps, or test them
+    against `tsx` before committing to them.
 - [ ] Actually create the GitHub App on github.com (manual step, see
       `ethiodeploy/README.md`) and fill real `.env` values — nothing above
-      has been exercised end-to-end yet, it's untested against a live App
-- [ ] Local dev needs Docker Desktop running (wasn't running during
-      scaffolding) — start it to run `docker-compose.dev.yml` and actually
-      test the flow before deploying to the server
-- [ ] Create GitHub remote for `ethiodeploy` and push (no `gh` CLI available
-      in this environment — needs manual repo creation or CLI install)
+      has been exercised end-to-end against a live GitHub App yet
+- [x] GitHub remote created (`gh` CLI installed + authenticated), pushed to
+      `github.com/Brooksolomon/ethiodeploy` (private)
 - [ ] Deploy `ethiodeploy` itself to the Hetzner server per its README
       (joins `proxy` network, `ethiodeploy.com` via the `cloudflare` DNS-01
       resolver since that zone's already in the Cloudflare account)
