@@ -13,7 +13,7 @@
 
 services:
   traefik:
-    image: traefik:v3.3
+    image: traefik:latest # TEMP: pin to exact version once Docker 29.x API-negotiation fix is confirmed working
     container_name: traefik
     restart: unless-stopped
     command:
